@@ -31,7 +31,7 @@ The data **`p301.csv`** is provided from the USFS experimental watershed in the 
 ```{r}
 #| message: false
 
-watershed_data <- read_csv(here("ESM 262", "p301.csv")) |> clean_names()
+watershed_data <- read_csv(here("week1", "data", "p301.csv")) |> clean_names()
 ```
 
 ## Part 1
