@@ -1,0 +1,29 @@
+---
+title: "Practice - Tues Lecture"
+format: html
+theme: united
+---
+
+```{r}
+library(here)
+library(tidyverse)
+library(janitor)
+
+```
+
+```{r}
+watershed_data <- read.csv(here("week2", "data", "p301.csv"))
+
+data_final <- watershed_data |>
+  group_by(wy) |>
+  summarise(total_stream = sum(streamflow),
+            total_precip = sum(precip),
+            percent_stream_precip = (total_stream/total_precip)*100)
+# calculate mean, range, and standard deviation of percent streamflow across all time
+
+mean_percent <- mean(data_final$percent_stream_precip)
+range_percent <- range(data_final$percent_stream_precip)
+sd_percent <- sd(data_final$percent_stream_precip)
+
+```
+
