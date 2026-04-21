@@ -16,7 +16,8 @@ Part 1 will assess the predictive ability of spring snowpack on summer water sup
 ```{r}
 #| message: false
 
-# load packages
+# packages
+
 library(tidyverse)
 library(here)
 library(janitor)
