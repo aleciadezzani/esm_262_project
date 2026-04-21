@@ -1,0 +1,181 @@
+---
+title: "Assignment 1"
+subtitle: "ESM 262"
+author: "Alecia Dezzani, Kobe Mayeda"
+date: "Monday, April 20, 2026"
+format: html
+editor: visual
+theme: mint
+echo: true
+---
+
+## Introduction & Set Up
+
+Part 1 will assess the predictive ability of spring snowpack on summer water supply. Part 2 will assess the relationship between different types of solar radiation on net primary productivity.
+
+```{r}
+#| message: false
+
+# load packages
+library(tidyverse)
+library(here)
+library(janitor)
+library(patchwork)
+library(jtools)
+library(MuMIn)
+```
+
+The data **`p301.csv`** is provided from the USFS experimental watershed in the Southern California Sierra.
+
+```{r}
+#| message: false
+
+watershed_data <- read_csv(here("ESM 262", "p301.csv")) |> clean_names()
+```
+
+## Part 1
+
+### Can spring snowpack predict the summer water supply?
+
+Often, water supply managers use the amount of snow accumulated in the springtime to predict the supply of water throughout the summer months. This analysis aims to identify the strength of snowpack as a sole predictor of water supply later in the year. Spring snowpack is defined as the measured snowpack (in m/m^2^) in April of the calendar year, and summer water supply is defined as the streamflow in July of the same calendar year. Then, an OLS regression compares the relationship between the amount of snow and streamflow from 1956- 1999.
+
+```{r}
+#| error: false
+#| warning: false
+#| message: false
+
+# spring snowpack = snowpack in April of the calendar year
+# summer water supply = stream flow in July of the calendar year
+
+# Keep data of interest
+snow_stream_data <- watershed_data |>
+  select(month, year, snowpack, streamflow)|>
+  group_by(month, year) |>
+  summarize(mean_snowpack = mean(snowpack), 
+            mean_streamflow = mean(streamflow))
+
+#Create tables of just snowpack in April, and just streamflow in July
+
+april_snow <- snow_stream_data |>
+  filter(month == 4, year != 2000) |>
+  select(month, year, mean_snowpack)
+
+july_stream <- snow_stream_data |>
+  filter(month == 7) |>
+  select(month, year, 
+         mean_streamflow)
+
+# join snowpack and streamflow data by year
+
+snow_stream_join <- full_join(april_snow, july_stream, by = "year") |>
+  select(year, mean_snowpack, mean_streamflow) |>
+  rename(april_mean_snowpack = mean_snowpack, 
+         july_mean_streamflow = mean_streamflow)
+    
+```
+
+### Linear Regression
+
+```{r}
+#| error: false
+#| warning: false
+#| message: false
+  
+snow_stream_reg <- lm(july_mean_streamflow ~ april_mean_snowpack, 
+                      data = snow_stream_join)
+summ(snow_stream_reg, digits = 4)
+```
+
+### Data Visualization
+
+```{r}
+#| error: false
+#| warning: false
+#| message: false
+
+water_supply_plot <- ggplot(data = snow_stream_join, 
+                            aes(x = april_mean_snowpack, 
+                                y = july_mean_streamflow)) +
+  theme_bw() +
+  geom_point(aes(color = year), size = 2, alpha = 0.9) + 
+  geom_smooth(method = "lm", 
+              formula = y ~ x, 
+              color = "coral", 
+              size = 0.95, 
+              se= TRUE, 
+              alpha = 0.2,
+              show.legend = TRUE) +
+  labs(title= "Mean Summer Water Supply and Spring Snowpack",
+       subtitle= "OLS Regression: y = 0 + 0.0021(x)",
+       x = "Mean Snowpack in April (m/m^2)",
+       y = "Daily Streamflow in July (m/m^2/day)")
+
+water_supply_plot
+
+```
+
+### Results & Analysis
+
+The OLS regression estimates that for every 1 m/m^2^ increase in April snowpack, the daily July stream flow increases by 0.0021 m/m^2^/day. The R^2^ value of 0.6328 suggests that approximately 63% of the change in streamflow is attributed to the change in snowpack. The standard error is relatively low as well. On paper, this model appears to represent the correlation between snowpack and streamflow well. However, the values of measured streamflow are near zero and may be negligible in real-world water supply scenarios. However, the more research is needed to learn if this level of accuracy is appropriate for water resource management.
+
+## Part 2
+
+### Do different types of solar radiation influence net primary production (NPP)?
+
+```{r}
+#read indata
+data_direct <- read.csv("p301.csv") |>
+  clean_names()|>
+  select(direct_solar, npp)
+
+data_diffuse <- read.csv("p301.csv") |>
+  clean_names()|>
+  select(diffuse_solar, npp)
+```
+
+### Linear Regression
+
+```{r}
+# Regression of direct solar radiation
+model_direct <- lm(npp ~ direct_solar, data = data_direct)
+summary(model_direct)
+
+# Regression of diffuse solar radiation
+model_diffuse <- lm(npp ~ diffuse_solar, data = data_diffuse)
+summary(model_diffuse)
+```
+
+### Data Visualization
+
+```{r}
+#| error: false
+#| warning: false
+#| message: false
+
+plot_direct <- ggplot(data_direct, aes(x = direct_solar, y = npp)) +
+  theme_bw()+
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm",
+              color = "blue") +
+  labs(title = "Direct Solar vs Net Primary Productivity",
+       x = "Direct Solar Radiation (kJ/(m^2)/day)",
+       y = "NPP (kgC/(m^2)/day)")
+
+plot_diffuse <- ggplot(data_diffuse, aes(x = diffuse_solar, y = npp)) +
+  theme_bw()+
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm",
+              color = "green") +
+  labs(title = "Diffuse Solar vs Net Primary Productivity",
+       x = "Diffuse Solar Radiation (kJ/(m^2)/day)",
+       y = "NPP (kgC/(m^2)/day)")
+
+stacked <- plot_direct/plot_diffuse
+stacked
+```
+
+### Results & Analysis
+
+The goal of this analysis is to understand how different types of solar radiation influence net primary production (NPP). Specifically, comparing direct solar radiation and diffuse solar radiation to determine which better predicts variation in NPP.
+
+Both direct and diffuse solar radiation are significantly positively related to NPP (p \< 2 × 10⁻¹⁶). However, the diffuse solar radiation model explains more variation in NPP (R² = 0.351) than the model using direct solar radiation (R² = 0.260). This suggests that diffuse solar radiation may be a stronger predictor of NPP. This may be due to diffuse radiation being more evenly distributed allowing it to penetrate deeper into plant canopies, leading to more efficient photosynthesis compared to direct solar radiation
