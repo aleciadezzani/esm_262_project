@@ -8,6 +8,3 @@ format: html
 Add something new
 
 test sentence
-
-
-second try at commit then git revert head
