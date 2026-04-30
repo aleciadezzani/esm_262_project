@@ -13,3 +13,20 @@ SHEY WAS HERE
 ---------------------------------
 
 xyzabc
+
+# Creating a new branch
+# in terminal, type git branch to see list and current position
+# to create a new branch, type: git branch new_name
+# to switch to a different branch, type: git checkout branch_name
+
+
+# push and pull are always from the master branch, not your side branch
+
+# if you are working on something that is not ready for others to use yet, do it in a separate branch so that others can't pull your draft work
+
+# Instead of a merge, you can also rebase (instead of 1+2 and 3+4 becoming 10, it becomes 1+2+3+4)
+
+
+# When you want to merge, 
+
+adding a line to the branchpractice side
