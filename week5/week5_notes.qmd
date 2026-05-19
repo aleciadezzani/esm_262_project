@@ -1,0 +1,605 @@
+---
+title: "Week 5 Notes"
+format: html
+editor: source
+theme: minty
+---
+```{r}
+library(tidyverse)
+library(here)
+```
+
+
+## Nesting Loops
+
+Loops can be “nested” with one loop inside the other
+
+Examples: - doing something to each row AND each column - doing something to each location AND each time step - doing something across categories AND through time
+
+Syntax in R:
+
+
+For each single step of the outer loop, the inner loop runs through all its iterations. So the loop above processes all columns for the first row, then moves to the next row. As before you don’t need to use i and j - these are just common variable names for counters but you can pick more meaningful ones
+
+#### Simple Example of Nested Loops
+
+```{r}
+# the sum of all the elements in a matrix keeping track of something at each location
+# create some sample data
+ntime = 5
+nlocation = 3
+
+# matrix function in R lets you initialize with data
+# here we are creating a matrix with nlocation rows and nobs columns, filled with integers between 1 and 10
+
+creatureobs = matrix(sample(1:10, ntime*nlocation, replace=TRUE), nrow=nlocation)
+colnames(creatureobs) = c("time1", "time2", "time3", "time4", "time5")
+rownames(creatureobs) = c("east", "west", "north")
+# check to see that it is a matrix with rows and columns
+str(creatureobs)
+```
+
+```{r}
+creatureobs
+```
+
+```{r}
+# nested for loop: use t as counter for time; l as counter for location
+
+
+totalsum = 0 # initialization 
+for (l in 1:nlocation) {      # outer loop for location
+  for (t in 1:ntime) {        # inner loop for observations
+     totalsum = totalsum + creatureobs[l,t]
+  }
+}
+totalsum
+```
+
+```{r}
+## to see if work print out at each location and time step
+totalsum = 0
+for (l in 1:nlocation) {
+  # inner loop for observations
+  for (t in 1:ntime) {
+     totalsum = totalsum + creatureobs[l,t]
+     # use sprintf to print out the location, time, and sum so far, cat just prints out the string
+     cat(sprintf("\nfor counter l=%d t=%d, location: %s, time: %s, sum so far: %s", l, t, rownames(creatureobs)[l], colnames(creatureobs)[t], totalsum))
+  }
+}
+```
+
+```{r}
+totalsum
+```
+
+#### Complex Example of Nested Loops
+
+Imagine we have running speeds of a species for different points in a transect. Observations are given to you in a matrix where rows are locations in the transect and columns are observations of speeds at each location for different individuals.
+
+1.  Find number of times speeds were above the hunting threshold anywhere (easy)
+
+- just count all values in the matrix above threshold (e.g. sum(matrix \>= threshold)) *(could do without a loop)*
+
+2.  Find how often neighboring locations had speeds above the hunting threshold at the same time (harder)
+
+- need to loop through each location and observation and check if neighboring location also had a speed above the threshold at that time
+
+- loops make this easy because you can go back and forth in time with your counter!
+
+```{r}
+#1 find number of times speed is above the hunting threshold
+
+# create a sample data matrix
+nobs = 4 #col
+nlocation = 5 #rows
+
+speedobs = matrix(runif(nobs*nlocation, min=0, max=100), nrow=nlocation)
+colnames(speedobs) = c("ind1", "ind2", "ind3", "ind4")
+rownames(speedobs) = c("0m", "20m", "40m", "60m", "80m")
+# check to see that it is a matrix with rows and columns
+speedobs
+```
+
+```{r}
+# nested for loop: use o as counter for observation; l as counter for location
+# outer loop for location
+hunting_speed = 60
+num_hunting_speeds=0
+for (l in 1:nlocation) {
+  # inner loop for observations
+  for (o in 1:nobs) {
+     num_hunting_speeds = num_hunting_speeds + ifelse(speedobs[l,o] >= hunting_speed, 1, 0)
+  }
+}
+
+num_hunting_speeds
+```
+
+```{r}
+# as percent
+num_hunting_speeds/(nobs*nlocation)*100
+```
+
+```{r}
+#2 Find how often neighboring locations had speeds above the hunting threshold at the same time (harder)
+
+# initialization
+num_hunting_speeds_neighbors=0
+
+# nested for loop: use o as counter for observation; l as counter for location
+
+# outer loop for location
+for (l in 1:(nlocation-1)) {    # notice that we only go to the second-last row
+  # inner loop for observations (col)
+  for (o in 1:nobs) {
+      if (speedobs[l,o] >= hunting_speed & speedobs[l+1,o] > hunting_speed) {
+         checkneigh = 1
+      } else {
+         checkneigh = 0
+      }
+     num_hunting_speeds_neighbors = num_hunting_speeds_neighbors + checkneigh
+  }
+}
+num_hunting_speeds_neighbors
+```
+
+```{r}
+# as percent of all observations
+num_hunting_speeds_neighbors/((nobs*(nlocation-1)))*100
+```
+
+### A bit more on nesting loops
+
+We could even have multiple levels of nesting — think about doing something to a 3-dimensional matrix of time and space (x, y)
+
+::: {.callout-note title="Format for Nested For Loop"}
+FOR (x in 1:nrow) {
+
+FOR (y in 1:ncol) {
+
+```         
+FOR (t in 1:ntime) {
+
+  ...
+
+}
+```
+
+} }
+:::
+
+To illustrate:
+
+```{r}
+# a 3-dimensional array: space (x=20, y=30) and time (10 steps)
+ocean = array(dim=c(20,30,10))
+str(ocean)
+```
+
+```{r}
+# fill with simulated temperature data using nested loops
+for (x in 1:nrow(ocean)) {
+  for (y in 1:ncol(ocean)) {
+    for (t in 1:dim(ocean)[3]) {
+      ocean[x,y,t] = rnorm(mean=16+t, sd=2, n=1)
+      # imagine running a model to estimate ocean temperature
+      # then feeding it into a model that uses that temperature to impact corals
+    }
+  }
+}
+```
+
+
+## While loop
+- `for` = works with a counter to decide how many times to repeat
+
+- `while` = repeats until a condition is met
+
+Goes through the loop until a condition is met
+
+useful for when you don’t know how many times you need to repeat something but you want to keep going until a condition is met
+
+often for simulations where you want to keep going until you reach a threshold or a certain outcome
+
+::: {.callout-note title="Format for While Loop"}
+while (condition) {
+
+...
+
+}
+:::
+
+#### Example of a While loop
+
+Imagine trying to estimate how long it will take for a water quality threshold to be exceeded when there is a leak of pollution into a lake
+
+You have an estimate of how much pollution is added each day, `pol_in`
+
+You also know that the pollution is removed at a certain rate each day `pol_out` but removal efficacy depend on the air temperature that day:
+
+$$ pol~{out} = pol~out,base~ ∗ (1 + 0.01∗air~temp~) $$ You know air temperature is normally distributed mean 20 degrees Celsius and standard deviation of 5 degrees Celsius
+
+**you want to know how long it will take for the pollution to exceed a threshold**
+
+*NOTE: I’m also going to add a check to stop if too many days pass! (we will talk about why)*
+
+```{r}
+# initialize parameters
+pol_in = 10 # pollution added each day
+pol_out_base = 5 # base pollution removed each day
+threshold = 100 # pollution threshold
+
+# initialize pollution level and day counter
+pollution_level = 0
+day = 0
+
+maxday =365
+# We need a while loop to simulate pollution levels over time
+# we use && for AND because we want to check both conditions - that pollution level is below threshold and that we haven't exceeded max days
+
+while ((pollution_level < threshold) && (day < maxday)) {
+  # update pollution level
+  air_temp = rnorm(mean=20, sd=5, n=1)
+  pol_out = pol_out_base * (1 + 0.01*air_temp) # calculate pollution removed based on air temp
+  pollution_level = pollution_level + pol_in - pol_out # update pollution level
+  day = day + 1 # increment day counter
+}
+cat(sprintf("It takes %d days for pollution to exceed the threshold of %d, final level: %.1f", day, threshold, pollution_level))
+```
+
+::: {.callout-warning title="Why do we need a check for max days?"}
+What if pollutant level never exceeds threshold? ==\> Infinite Loop!
+
+You can often use ‘ctrl C’ to break out of an infinite loop
+
+It is better to have a check in your code to stop if you exceed a certain number of iterations
+:::
+
+
+## Functions (Makeup Lecture)
+
+### Modularity
+Programs are made up of building blocks
+
+A *main program* is a central piece of code that controls the flow and calls functions/modules/building blocks
+
+Breaking tasks into functions is a central programming concept
+
+Often modules are called ‘functions’ but also called:
+* ‘procedures’
+* ‘subroutines’
+* ‘methods’
+* ‘subprograms’
+
+You have already been using functions in R - e.g. mean(), lm(), plot() etc.
+
+EXAMPLES of Reuse
+
+* an ecosystem model might re-use instructions for calculating how a living organism grows
+
+* e.g you might have a function that calculates growth from temperature and moisture and you can re-use this function for different organisms or different species with slightly different inputs
+
+ * an accounting program might re-use instructions for computing net present value from interest rates, that you can re-use for different projects or different time periods
+
+Modules often become ‘black boxes’ which hides detail that might make understanding the program overly complex
+
+Most languages have lots of black boxes already written AND most allow you to write your own
+
+#### Inputs and Parameters
+All functions/modules have **inputs/parameters** and **outputs**
+
+**Inputs** — what you give the function - sometimes separated into input data and parameters
+* input data = the “what” that is manipulated
+* parameters determine “how” the manipulation is done
+
+:::{.callout-note title = "an example of a R black box function"}
+`sort` has inputs = the data stream, and parameters = how to do the sort
+:::
+ 
+Example in code:
+```{r}
+# look at a R data set on Biological Oxygen Demand over time
+
+# notice the use of data - R function that brings pre-stored datasets into the work space
+data(BOD)
+
+# notice "help" and the information that it provides
+help(BOD)
+
+# options for looking at data
+view(BOD)
+
+head(BOD)
+
+# example of a function - SORT
+result = sort(BOD[,"demand"], decreasing=TRUE, method="quick")
+head(result)
+```
+
+In this example, parameters are **decreasing** and **method** - they determine how the function works. inputs are the data to be sorted
+
+Note: sometimes parameters can influence how the functions works (e.g method)
+
+Output is a sorted version of demand saved to `result`.
+
+### Learn to think in terms of functions/modules
+
+1. break your tasks into boxes with inputs, parameters and output
+2. WRITE DOWN the contract for each box/function
+* CONTRACT = if the users gives you A, the function with return B
+* specify A and B as precisely as you can (include units, time/space scale, parameters, options)
+
+**Steps In Program Design**
+1. Clearly define your goal in words/figures as precisely as possible what do you want your program to do
+- decide on modules
+- for each module, write a contract - inputs, outputs and what it will do
+2. Implement AND document as you go
+3. Test
+4. Refine
+5. Test again
+6. Create User Documentation and Distribute
+
+#### Building and Using a Function
+Lets say we want to develop a function that computes power generated from hydro-reservoir. We know that power generation depends on water release rates and the potential energy (from the reservoir height). 
+
+Contract
+*Input*: Reservoir height (m) and flow rate (m3/sec) (these inputs could be a single value in time or a time series)
+
+*Output*: Instantaneous power generation (W/s) (as a single value or value for each reservoir height and flow rate combination)
+
+*Parameters*: K~Eff~
+ reservoir efficiency, ρ (density of water), g
+ (acceleration due to gravity)
+ 
+**What the function will do**
+compute power using the following equation - *body of the function*
+
+P=ρ∗h∗r∗g*K~Eff~
+
+P is Power in watts,
+ρ is the density of water (~1000 kg/m3)
+h is height in meters,
+r is flow rate in cubic meters per second,
+g is acceleration due to gravity of 9.8 m/s2,
+KEff is a coefficient of efficiency ranging from 0 to 1.
+
+:::{.callout-note}
+Function Name = function(inputs, parameters) {
+body of the function (manipulation of inputs)
+return(values to return)
+}
+:::
+
+- Body includes all calculations between { and }
+- anything inside the body is not “seen” by the workspace so you can re-use variables
+- `return` tells R what the output is
+
+```{r}
+library(here)
+# source the function from a file - make sure you are in the right working directory
+source(here("week5/R/power_gen_orig.R"))
+
+# alternatively
+# function definition in-line
+power_gen_orig = function(height, flow, rho=1000, g=9.8, Keff=0.8) {
+result = rho * height * flow * g * Keff
+return(result)
+}
+
+# note that height and flow don't have default values, so you must provide them when you use the function, but the other parameters have default values that you can overwrite if you want to
+```
+
+**Using the function and scoping**
+To use the function, we substitute “actual” values for each argument (parameter and inputs) (unless there are defaults). 
+R assumes that arguments are in the order that they were specified in the function definition - unless you refer to them by name
+
+Example:
+```{r}
+# This use of the function
+power_gen_orig(20,1)
+
+# is the same as this
+power_gen_orig(height=20, flow=1)
+
+# or this; where we use the names of the arguments to specify which is which - this is especially useful if you have a lot of arguments and don't want to remember the order
+power_gen_orig(flow=1, height=20)
+
+# change the defaults - what if efficiency is less?
+power_gen_orig(20,1, Keff=0.2)
+```
+#### Scoping
+The scope of a variable in a program defines where it can be “seen” 
+Variables defined inside a function cannot be “seen” outside of that function
+
+There are advantages to this - the interior of the building block does not ‘interfere’ with other parts of the program
+
+Example:
+```{r}
+# specifying function name without () shows code
+# try it for internal R functions
+power_gen_orig
+```
+```{r}
+# use the function and save the results
+reservoir1 = power_gen_orig(height=4, flow=7)
+
+reservoir2 = power_gen_orig(height=4, flow=7, Keff=0.2)
+
+# note that internal variables are not defined so these R statements will FAIL
+
+# reservoir1 and reservoir2 saved in the environment
+```
+#### Some Conventions & Best Practices...
+- Always write your function in a text editor and then copy into R
+- By convention we name files with functions in them by the name of the function.R e.g. power_gen_orig.R
+- you can have R read a text file by source(“power_gen.R”) - make sure you are in the right working directory
+- keep organized by keeping all functions in a subdirectory called R
+- Include comments both in the body of the function and at the top - there is a particular style of adding comments to the top of the function that we will use later to generate automatic documentation - so useful to start to follow it, more or less, now - see power_gen_orig.R for the style
+- Eventually we will want our function to be part of a package (a library of many functions) to create a package you must use this convention (name.R) place all function in a directory called “R”
+
+Example - source and use function
+```{r}
+library(here)
+source(here("week5/R/power_gen_orig.R"))
+power_gen_orig(20,1)
+```
+## Thursday: More Functions
+
+### Lists
+- Lists are the most “informal” data structures in R
+- List are really useful for keeping track of and organizing groups of things that are not all the same
+- A list could be a table where number of rows is different for each column
+- A list can have numeric, character, factors all mixed together
+- List are often used for returning more complex information from function (e.g. lm)
+
+#### Example
+```{r}
+# make a list
+sale = list(id=2, quality="high", contents=c("apple","cherry"), cost=c(4,5))
+sale
+
+# same format as a data frame how vectors are columns, but they can be diff data types and have diff numbers of rows
+```
+```{r}
+#ways to access elements
+sale$id
+```
+```{r}
+sale[[3]]
+# returns the third element (vector) in the list
+```
+```{r}
+sale$content[2]
+#or
+sale[[3]][2]
+# returns the second value in the vector "content"
+```
+```{r}
+#how to add vectors to list
+
+sale$location = "farmers market"
+sale
+```
+```{r}
+#how to remove vectors from your list
+sale$location = NULL
+sale
+```
+```{r}
+sale$amount = c(10, 8)
+
+sale$profit = sale$cost * sale$amount
+```
+
+**Other examples:**
+mylist = list(name= “Bob”, age=30, hobbies=c(“fishing”, “hiking”), scores=data.frame(test1=c(90,80), test2=c(85,95)))
+
+to access something in a list - two options mylist$name mylist[[“name”]]
+
+:::{.callout-note title = "Remember:"}
+Best practice is to create function in a separate R file, and `source` it
+:::
+
+### Using lists to return multiple items from a function
+We can return a list from a function to give the user multiple pieces of information
+```{r}
+# a function that returns the max and min of a vector of numbers
+minmax = function(x) {
+  minx = min(x)
+  maxx = max(x)
+  return(list(min=minx, max=maxx)) # also gives the values a name
+}
+
+minmax(c(3,5,2,8,1))
+```
+
+#### More Complex Example: water quality
+Lets say we want to compute a water quality index that is based on multiple measurements (e.g. temperature, dissolved oxygen, turbidity)
+
+check if each measurement is above, within, or below a thresholdrange
+return rating for each measurement (e.g. good, moderate, poor if above, within, or below threshold)
+return an overall numeric rating
+return an overall index of water quality (e.g. good, moderate, poor)
+```{r}
+# Source the function
+source(here("week5/R/analyze_water_quality.R"))
+
+# --- Use defaults (most common case) ---
+results <- analyze_water_quality(ph = 7.2, dissolved_oxygen = 8.5, turbidity = 2.1)
+results
+```
+```{r}
+# --- Override one limit, e.g. stricter turbidity standard for drinking water ---
+results_strict <- analyze_water_quality(
+  ph = 7.2, dissolved_oxygen = 8.5, turbidity = 2.1,
+  turbidity_max = 1.0
+)
+results_strict
+```
+
+#### Practice
+Modify your diversity function to return a list with
+- Simpson diversity
+- most frequent species
+- number of distinct species
+
+```{r}
+set.seed(262)
+ab_spp <- c("pink", "red", "green", "pinto", "black")
+ab_count <- sample(1:50, size = 5, replace = F,  prob = dnorm(1:50, mean = 25, sd = 15))
+ab_data <- data.frame(ab_spp, ab_count)
+print(ab_data)
+```
+
+```{r}
+#' Abalone Species Biodiversity
+#' @param n a vector of counts for each species
+#' @param N the total number of individuals (sum of n)
+#' @return Diversity Index Score
+
+ab_diversity = function(n, N) {
+  # Calculate (n/N)^2 for every species, sum them, then subtract from 1
+  ab_result = 1 - sum((n / N)^2)
+  return(ab_result)
+}
+
+# Run the function
+score = ab_diversity(n = ab_data$ab_count, N = sum(ab_data$ab_count))
+score
+```
+#### Naomi's Function
+```{r}
+library(here)
+library(tidyverse)
+# repeat with a list
+source(here("week5/R/summarize_diversity.R"))
+
+# lets compare two catches - with different levels of diversity
+possible.fish =c("salmon","steelhead","shark","tuna","cod")
+
+# we can control sample probablities as long as it sums to 1 - here we have a mix of fish but cod is most common
+
+# to do this we assign probabities to each fish 
+# high prob more likely to be sampled
+# probabilities must sum to 1 
+catch1 = sample(possible.fish, size=10, prob = c(0.2, 0.2, 0.1, 0.1, 0.4), replace=T)
+
+# lets create a test case that should have low diversity, making most fish steelhead
+catch2 = sample(possible.fish, size=10, prob = c(0.1, 0.7, 0.1, 0.1, 0.1), replace=T)
+
+summarize_diversity
+```
+```{r}
+# run function and save results to a variable
+d1 = summarize_diversity(catch1)
+d2 = summarize_diversity(catch2)
+d1
+d2
+```
+```{r}
+# just index
+d1$simpson
+d2$simpson
+```
+

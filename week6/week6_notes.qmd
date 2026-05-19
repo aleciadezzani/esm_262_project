@@ -1,0 +1,464 @@
+---
+title: "week6notes"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(here)
+```
+
+# Monday
+
+## Vectors and Functions
+
+we often want to ‘run’ our function over multiple inputs
+
+- many citizen scientists contributing to species data collection in different locations
+- Generally vector arithmetic doesn’t require a for loop (in most languages)
+- R has many ways to loop over data
+
+we will cover several
+simplest vector arithmetic (built in)
+
+```{r}
+# example
+a <- c(1, 2, 3)
+b <- c(4, 5, 6)
+a + b
+# sum is done for each element of the vector
+```
+** Implicit Iteration** = If calculations in the function can be done as vectors - this is automatic (*e.g. parallel rows for each variable*)
+
+
+Example
+```{r}
+source(here("week6/power_gen_orig.R"))
+
+power_gen_orig(flow=2,height=5)
+```
+```{r}
+# Vectors of flow and height
+flow = runif(min=1, max=10, n=20)
+height = runif(min=5, max =30, n=20)
+
+power = power_gen_orig(flow, height)
+power
+
+```
+```{r}
+length(power)
+length(flow)
+```
+```{r}
+power_gen_orig(flow=flow, height = height)
+```
+
+What if lengths are unequal?? unclear results
+
+```{r}
+height = c(0,1)
+power = power_gen_orig(flow, height)
+# it works but what is it doing?
+ power
+```
+```{r}
+# unclear behaviors - best to not do it
+# helps to define a data frame
+powerdf = data.frame(
+flow = runif(min=1, max=10, n=20),
+height = runif(min=5, max =30, n=20)
+)
+
+# this works
+ powerdf$highK = power_gen_orig(flow, height, K=0.4)
+ powerdf$lowK = power_gen_orig(flow, height, K=0.9)
+ mean(powerdf$lowK)
+```
+```{r}
+power1 = power_gen_orig(flow, height, Keff = 0.1)
+power2 = power_gen_orig(flow, height, Keff = 0.8)
+```
+
+```{r}
+powerdf = data.frame(
+  flow = runif(min=1, max = 10, n=20),
+  height = runif(min=5, max = 30, n = 20)
+)
+
+powerdf$highK = power_gen_orig(flow, height, K=0.4)
+```
+
+## Loops and Functions
+
+**Another Example**
+
+Calculate NPV for a range of diff interest rates, a range of damages, that may be incurred 10 years into the future
+
+Steps
+- define inputs (interest rates, damages)
+- define output (NPV)
+- write the function
+- create a data structure to store results where we vary both interest rates and damages
+- use nested for loops to fill in the data structure
+
+#### NPV: Nested For Loop Example
+```{r}
+# write a function to compute npv
+
+compute_NPV = function(value, time, discount) {
+  #use value to compute NPV
+  result = value / (1+discount)**time
+  return(result)
+}
+
+compute_NPV
+```
+```{r}
+#test the function
+compute_NPV(20, discount=0.01, time=20)
+```
+```{r}
+#what we wanted to be able to do, is run a bunch of possible inputs and rates to see what could happen
+# generate some input
+damages = c(25,33,91,24)
+damages
+
+# sensitivity to discount rate
+discount_rates = seq(from=0.01, to=0.04, by=0.005)
+discount_rates
+
+#let's say we always care about the money in 10 years
+yr = 10
+```
+```{r}
+compute_NPV(value = damages, discount = discount_rates, time=yr)
+
+# R doesn't like this bc there are diff number of rates, damages, etc
+
+# we need a for loop!
+```
+```{r}
+npvs = data.frame(
+  matrix(nrow=length(damages), ncol=length(discount_rates))
+)
+# make an empty data frame to initialize for our for loop
+```
+
+```{r}
+for (i in 1:length(damages)) {
+  for (j in 1:length(discount_rates)) {
+    npvs[i,j]= compute_NPV(value=damages[i], discount = discount_rates[j], time=yr)
+  }
+}
+npvs
+
+colnames(npvs) = discount_rates
+rownames(npvs) = damages
+npvs$damages = damages
+```
+For plotting, pivot_longer is helpful to reorganize
+```{r}
+npv_plotdata = npvs |> pivot_longer(!damages, names_to = "discount", values_to = "npv" )
+
+# now it's better to plot
+```
+
+```{r}
+npv_plot <- ggplot(npv_plotdata, aes(x = damages, y = npv, color = discount)) +
+  geom_point() +
+  theme_minimal()
+
+npv_plot
+```
+
+## Thinking Big: how to create modules as parts of a big program
+
+### A Simple Function Example - Just One Module
+Let’s say we want to develop a program that computes power generated from a hydro-reservoir
+
+We know that power generation depends on water release rates and the potential energy (from the reservoir height)
+
+
+
+### Let’s Think About a More Complex Program…
+
+Goal = Calculate profit from a reservoir fed by a river, if a minimum reservoir volume must be maintained and otherwise the reservoir is operated at a flow rate set by the user
+
+Input =  Stream gage data (m^^3^^/sec)
+
+Parameters =
+Efficiency,
+ρ (density of water),
+g (acceleration due to gravity), 
+Maximum Reservoir Capacity (m3), 
+Minimum Reservoir Volume (m3), 
+Set flow rate (m3/sec), 
+Price of power (/W)$, 
+
+Output = Profit ($)
+
+Modules
+
+- Compute Power from a given reservoir height and flow rate (compute_power)
+- Keep track of reservoir volume given inflow and output (reservoir_state)
+- Determine flow rate, given operator desired flow rate but need for minimum capacity (determine_flow_rate)
+- Compute profit from power (compute_profit)
+Each module would have its own inputs, parameters and output
+
+A Flow control diagram puts the modules together
+
+### Assignment 5
+
+With a partner, think of an example complex data science task/program that you might want to design with:
+
+- at least 4 modules
+- 1 module must be used at least twice
+- at least one for (or while) loop
+
+Planning - Step 1
+
+- sketch a diagram that shows how these modules would be put together to go from inputs to output for the overall program (30pts)
+- write a contract for the overall program (input, output, parameters) (10pts)
+- break the program into modules (naming them appropriately), write a contract for each one (20pts)
+
+*Important - Check in with myself or Ojas to get the OK on your plan BEFORE you go to Step 2*
+
+Implementation - Step 2
+
+- write functions (stored in separate documents) for each module (30pts)
+- write an overall program that manages calls to each function (10pts)
+- create some data and use it to test the program (10pts)
+
+
+Ideas
+
+based on amount of precipitation, calculate the height of the water (goes into both options) 
+
+costs for no action (old bridge)
+- accidents/fatalities
+- infrastructure damages as a function of precipitation
+- increased travel times due to rerouting when bridge closed
+
+costs for building new bridge
+- construction materials
+- construction labor
+- if there's too much rain, have to stop construction and delays cost X amount (for loop)
+
+final module 
+- add modules of each option and print results
+
+
+# Tuesday 
+
+## Control Structures
+
+### If Else in R
+Two ways in R
+
+**ifelse function**
+- ifelse(condition, TRUE, FALSE)
+- best used for simple application
+
+**if..else structure**
+more formal way of deciding on two paths
+
+```{r}
+a = 20
+classr  = ifelse(a > 90, "high","low")
+classr
+```
+```{r}
+# also works with multiple values
+a = runif(min=1, max=100, n=5)
+a
+```
+```{r}
+# ifelse can work with vectors
+classr  = ifelse((a > 90) | !(a<10), "high","low")
+classr
+```
+:::{.callout-note}
+& <-- and
+
+| <-- or
+
+! <-- except
+:::
+
+#### Flow control in functions
+
+best to use `if {} else {}`
+
+- see example in `summarize_diversity2.R`
+
+```{r}
+source(here("week6/summarize_diversity2.R"))
+
+flowers = sample(c("rose","peony","daisy"), replace=T, prob = c(0.1, 0.8, 0.1),size=30)
+
+summarize_diversity(flowers, index="B")$simpson
+```
+```{r}
+summarize_diversity(flowers, index="A")$simpson
+# can specify index A or B so that the function knows which formula to use to calculate biodiversity
+```
+#### Embedding ifelse statements
+
+Gives us more than two conditions
+```{r}
+classr= ifelse(a>10, ifelse(a>50, "high", "med"), "low")
+```
+
+### Multiple Conditions
+
+If you have multiple conditions we can use `case_when` (requires tidyverse library)
+
+or `switch` is another option
+
+#### `case_when` Fishing Example
+
+Here’s a simple example of how it works
+
+Imagine you are recording fish catches at different locations (we are going to simulate this by sampling )
+
+Fish have grades… A, B, C
+- steelhead are A,
+- tuna are B
+- everything else is C
+
+:::{.callout-note}
+case_when(
+
+condition ~ response,
+
+condition ~ response … )
+:::
+
+```{r}
+library(tidyverse)
+fish = "steelhead"
+case_when(
+  (fish =="steelhead")  ~ "A", 
+  (fish =="tuna") ~ "B", 
+  !(fish == "tuna") & !(fish=="steelhead") ~ "C"
+  )
+```
+Let's build a function to make this cleaner
+```{r}
+# apply to all of our ocean
+# start by making a function - this will be cleaner!
+classify_fish = function(fish) {
+ class =  case_when(
+   (fish =="steelhead")  ~ "A", 
+   (fish =="tuna") ~ "B", 
+   !(fish == "tuna") & !(fish=="steelhead") ~ "C")
+ return(class) }
+
+classify_fish("steelhead")
+classify_fish("cod")
+```
+```{r}
+# apply to our ocean
+possible.fish = c("salmon","steelhead","shark","tuna","cod")
+catch2 = base::sample(possible.fish, size=20, replace=T)
+catch2
+
+# now classify all samples
+classify_fish(catch2)
+```
+
+#### A more interesting `case_when` example
+
+Lets imagine that we are monitoring pollution in a lake, and we want to write a function that will let us know (flag) if risk associated with nutrient pollution are high, medium or low
+
+From ecological studies, we know that:
+
+*High Risk Conditions*
+- risk is high if water temperature is greater than a threshold for more than 5 days, and
+- mean nutrient concentration is greater than a high threshold
+
+*Medium Risk Conditions*
+- Risk is medium if water temperature is greater than a threshold for more than 5 days and
+- mean nutrient concentration is greater than a medium threshold
+
+*Everything else is low risk*
+
+**Inputs**:
+- nutrient concentration for at least 5 days
+- temperature for at least 5 days
+- thresholds for temperature and nutrient (with default values)
+
+**Outputs**:
+- Mean Nutrient Concentration
+- Pollution Risk as “low”, “med” or “high”
+
+```{r}
+source(here("week6/classify_lake.R"))
+
+# generate some data to try the function
+temperature = runif(min=4, max=35, n=30)
+nutrient = runif(min=5, max=40, n=30)
+
+# try it
+res=classify_lake(temperature=temperature, nutrient=nutrient)
+
+# lets pick some numbers we know should give us a low value
+nutrient = runif(min=0, max=5, n=30)
+classify_lake(temperature=temperature, nutrient=nutrient)
+```
+### Review
+
+We are using functions as a way to design modular programs (that might involve many functions that are linked together)
+
+We always start with clearly defininng our goal for the whole program and each piece (and diagramming this if needed for programs made of multiple functions)
+
+Always write your function in a text editor and then copy into R
+
+By convention we name files with functions in them by the name of the function.R e.g. power_gen_orig.R
+
+you can have R read a text file by source(“power_gen.R”) - make sure you are in the right working directory
+
+keep organized by keeping all functions in a subdirectory called R
+
+Eventually we will want our function to be part of a package (a library of many functions) - to create a package you must use this convention (name.R) place all function in a directory called “R”
+
+
+## Error Checking - What will your function do if user gives you garbage data?
+
+imagine that you have a function that computes microbial growth rates with temperature...
+
+**Two Options:**
+
+1. error-checking (nice)
+
+if temperature < -100 or > 100 
+- set results to NA
+- or exit function with a warning
+
+2. assume user reads the contract :) return unrealistic values
+- if input -999.0, will still try to output growth rate
+
+Error-checking is helpful if you are going to build a model made up of many functions- why?
+
+### How to add error checking
+```{r}
+source(here("week6/power_gen_orig.R"))
+
+power_gen = function(height, flow, rho=1000, g=9.8, Keff=0.8) {
+  # make sure inputs are positive and if not set as NA so result will be NA
+   if (height < 0) height=NA
+  
+# an alterative is to exit the function prematurely 
+  if (flow < 0) return("Flow cannot be less than 0")
+  if (height < 0) return("Height cannot be less than 0")
+      
+  # calculate power
+    result = rho * height * flow * g * Keff
+  return(result)
+}
+
+power_gen(2,3)
+```
+

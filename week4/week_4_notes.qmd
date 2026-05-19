@@ -1,0 +1,463 @@
+---
+title: "Week 4 Notes"
+subtitle: "ESM 262 - Computing for Environmental Science and Management"
+author: Alecia
+format: html
+editor: visual
+---
+
+# Tuesday 5/5
+
+```{r}
+library(tidyverse)
+library(here)
+
+```
+
+## Data Types
+
+Some useful data types in R:
+
+- string
+- numeric
+- tibble
+- factors
+- lists
+- 
+
+## Ways to Generate Data
+
+When testing your code, it can be helpful to generate test data.
+
+Generating numeric data: `runif(min, max)` = sampling from a uniform distribution `rnorm(mean, sd)` = sampling from a uniform and normal distribution `rpois(lambda)` = sampling from a poisson distribution
+
+For categorical data: `sample(vector)` `sequence`
+
+### Examples
+
+- fire starts = uniform distribution
+
+```{r}
+firestarts = runif(20, min=0, max = 100)
+ggplot(data.frame(firestarts = firestarts),
+       aes(firestarts)) + geom_histogram()
+
+```
+
+- otter body weights = normal distribution
+
+```{r}
+otterweight = rnorm(100, mean = 10, sd = 2) # first number is n sample size
+ggplot(data.frame(otterweight),
+       aes(otterweight)) + geom_histogram()
+```
+
+Pick a random sample from a vector of values:
+
+```{r}
+pick = sample(seq(2000, 2025), size = 20, replace = TRUE)
+pick
+
+# no repeat years
+pick2 = sample(seq(2000, 2025), size = 20, replace = FALSE)
+pick2
+
+```
+
+Bear Encounters:
+
+```{r}
+bear = rpois(1000, 1)
+
+ggplot(data.frame(bear = bear),
+       aes(bear)) + geom_histogram()
+```
+
+```{r}
+data()
+
+data(airquality) #grab dataset from R
+
+help(airquality) # learn about data set
+
+str(airquality) #structure of data frame
+
+attributes(airquality) #attributes of data frame
+
+ggplot(airquality, aes(x=Temp, y = Ozone)) + geom_point()
+
+```
+
+Let's say we are testing a new product and we weant a sample of 5 ozone measures (one column of the data)
+
+```{r}
+ozone_sample = sample(airquality$Ozone, size = 5, replace = FALSE)
+ozone_sample
+
+#results = [1]  7 23 NA 30 91
+
+```
+
+If your data has NA's, then when you take a random sample they may be selected.
+
+If you don't want NA's...
+
+```{r}
+airquality_clean = na.omit(airquality) #makes a new data set without any NA's
+
+```
+
+How to sample several ROWS (with all info) from the data set...
+
+```{r}
+ozone_sample_full = sample(1:nrow(airquality_clean), size = 5, replace = FALSE)
+ozone_sample_full
+
+ggplot(airquality_clean, aes(x = Temp, y = Ozone)) + 
+  geom_point() +
+  geom_point(aes(x = ozone_sample_full$Temp, y = ozone_sample_full$Ozone), color = "red")
+  
+```
+
+Wind Speed Practice
+
+```{r}
+wind_median <- median(airquality_clean$Wind)
+
+wind_sample = sample(airquality_clean$Wind, size = 10, replace = FALSE)
+wind_sample
+# [1]  9.2 12.6  8.0  9.7  8.0 12.0  4.6  8.6  8.6  9.2
+
+wind_median_sample = median(wind_sample)
+
+```
+
+## Factors
+
+```{r}
+# good for classes, categories. Like if you want to treat "Year" as a factor
+
+# R calls them levels
+
+possible.fish = c("salmon", "steelhead", "shark", "tuna", "cod")
+
+#let's sample from the vector
+catch1 = base::sample(possible.fish, size = 20, replace = TRUE)
+
+# because possible,fish was a factor, then catch1 will also be a factor
+catch1
+
+summary(catch1) # not that useful...
+
+catch1 = as.factor(catch1)
+
+summary(catch1) #provides each category and how many are in that category
+```
+
+Other useful things with factors...
+
+```{r}
+plot(catch1, col = "blue") #creates a bar chart with frequencies of categories
+
+mean(summary(catch1)) #7
+
+max(summary(catch1)) #7
+
+which.max(summary(catch1)) # cod 1
+
+names(which.max(summary(catch1))) #just to get the name "cod"
+```
+
+Practice = Catch something...
+
+```{r}
+# fake population of butterflies
+
+possible.butt = c("orange", "hotpink", "chartreuse", "skyblue", "purple")
+
+catch2 = base::sample(possible.butt, size = 30, replace = TRUE)
+
+catch2 = as.factor(catch2)
+
+summary(catch2)
+
+plot(catch2, col = c("chartreuse","hotpink", "orange", "purple", "skyblue"))
+```
+
+## Strings
+
+`sprintf` used something called *format strings*...
+
+**Example:**
+
+```{r}
+sprintf("We found %d %s %3.1f miles from shore", 4, "Otters", 18.34985)
+
+# %s replaces with a string
+# %d replaces with an integer
+# %f replaces with a real value
+#4.1f replaces iwth a real value with 4 digits, two after decimal
+# %n replaces with a numeric
+```
+
+Practice
+
+```{r}
+# USE RESULTS FOR CREAING TEXT
+
+```
+
+Make a string with sprintf and add to plot title
+
+```{r}
+# # create vector of possible flowers 
+possible.flowers = c("tulip","rose","lily","iris","marigold","daisy")
+
+# we can use sample to simulate a random recording of purchases at the market, lets create data that had 300 flower purchases
+
+purchases = sample(possible.flowers, size=20, replace=T)
+purchases= as.factor(purchases) # this is my data frame
+
+# make it a data frame for plotting later
+# maybe we want to add more information about the purchases later - like price, time of day, etc. - so make column name flower
+purchases  = data.frame(flower=purchases) 
+
+# to quickly get information of flower purchases 
+summary(purchases$flower)
+```
+
+```{r}
+# sprintf creates a string %s mean use what ever is after the , to fill in a string
+plottitle=sprintf("The most frequently bought flower was %s\n There were %d bought", names(which.max(summary(purchases$flower))), max(summary(purchases$flower)))
+
+# now plot
+ggplot(purchases, aes(flower, fill=flower))+geom_histogram(stat="count")+labs(title=plottitle)+
+  theme(legend.position="none")
+```
+
+# Thursday 5/7
+
+## Looping!
+
+Repeating something is a fundamental concept in programming. We usually call this looping. All programming languages have ways to do this - sometimes hidden. Lets start with the basics of how you do repetition - the *for* loop - used in many languages.
+
+### *for* statement
+
+- defines a loop using a counter that is incremented each time you go through the loop
+- the counter - could be any variable (we often use i) but you could use whatever variable you want (usually use some single letter)
+- it repeats the commands between the { and } after the *for* keyword and loop definition
+- these commands are repeated until the counter condition is TRUE
+
+```{r}
+# simple example - use a loop to sum the numbers from 1 to 5
+# a = 0+1+2+3+4+5
+a=0
+for (i in 1:5) {  # the for statement in
+ a = a+i
+}
+a
+
+```
+
+for (i in 1:5) - mean you start with i=1 the commands in the loop are executed - a = a+i then you go back to the top of the loop and increment i to 2
+
+i = 1 a = 0 + 1 = 1 i = 2 a = 1 + 2 = 3 i = 3 a = 3 + 3 = 6
+
+#### Keeping track of what happens each step/interation
+
+- start with a data structure to hold the results -
+
+- initialize to 0
+
+  - its good practice to initialize data before a loop
+  - initialize means to create a data structure and set values, usually to zero but sometimes NA
+
+  ```{r}
+  # if you want to keep track of a for each iteration
+  # start with a data structure to hold the results - 
+  # there will be 5 iterations, so a vector of length 5
+  # initialize to 0 
+
+  av = rep(x=0, times=5)
+
+  # now we can fill in the vector with the sum at each iteration
+  # we can use the counter (i) to access the correct element of the vector
+  # note that we have to treat the first iteration differently because we don't have a previous value to add to
+
+  for (i in 1:5) {  # counter is the i
+    if (i==1) {     #condition statement if/else
+      av[i] = 1
+    } else {
+    av[i] = av[i-1]+i
+    }
+  }
+  av
+  ```
+
+  ```{r}
+  # note that R has alternatives using functions that do this looping for you
+  a = sum(seq(from=1, to=5))
+  a
+  ```
+
+### When to use loops
+
+When you want to repeat something a specific number of times R has many built in functions to do this \* BUT sometimes won’t do exactly what you want \* other languages also use versions of the for loop
+
+Generating test data is a helpful way to check your code. Take advantage of built-in R functions to sample from distributions as we did last class
+
+```{r}
+testnumbers = runif(min=0, max=20, n=100)
+
+total = 0
+nvalues = 100
+for (i in 1:nvalues) {
+  total = testnumbers[i]+total
+}
+total/nvalues
+
+```
+
+Check if your loop is correct using `mean`
+
+```{r}
+mean(testnumbers)
+
+```
+
+#### Another Example
+
+Calculating net income from revenue minus expenses
+
+```{r}
+# lets say we wanted to look at income minus expenses for net income
+# create some data for an example
+
+income = runif(min=1000, max=5000, n=10)
+income
+
+expenses = rnorm(mean=1500, sd=500, n=10)
+expenses
+
+# it is possible that this approach could generate negative expenses, so fix that:
+expenses = ifelse(expenses < 0, 0, expenses)
+
+# lets make this a data frame for organization
+account = data.frame(income=income, expenses=expenses)
+# lets add a year
+account$year = seq(from=2000, length.out=nrow(account))
+
+# now compute net income - we could do this with a loop but R is designed to do this without loops
+# normally we can just do
+account = account %>% mutate(net = income-expenses)
+head(account)
+```
+
+```{r}
+# We could have computed net income with a for loop!
+# sometimes we use NA to show we haven't computed it yet, so "initialize" as NA
+
+# lets add a column for our net computed by a loop so our data has somewhere to go
+account$netloop=NA
+account
+
+# note that I can use any variable I want as a counter -
+# notice how I'm now using n to access each row of the data frame
+for (n in 1:10) {
+  account$netloop[n] = account$income[n]-account$expenses[n]
+}
+
+# as expected, mutate net and netloop are the same :)
+head(account)
+```
+
+### Why loop: cross-row dependencies
+
+While sum and mean are functions created by the R community, what if you were doing something more complex to each row? What if we needed data from a previous row for each calculation? Example: carry-forward net income = current year’s net + last year’s carry-forward
+
+```{r}
+# note: we treat the first year differently because we don't have carry forward.
+# initialize our column to zero, start counter (n) at 2 instead of 1
+# make the first value equal to the net of first year
+
+# create new column
+account$carryforwardnet = 0
+account$carryforwardnet[1]=account$net[1]
+# now loop - looking backward one year to get previous years carry forward
+for (n in 2:10) {
+  account$carryforwardnet[n] = account$net[n]+account$carryforwardnet[n-1] 
+  # n-1 is the previous row
+  # have to start counter at 2 because there is no row before the first row
+}
+
+# plot - use color to show current year's contribution as positive or negative
+ggplot(account, aes(year, carryforwardnet, fill=net, group=year))+geom_col()+
+  scale_fill_gradient(low="red", high="black")
+```
+
+::: callout-note
+When you are adding/subtracting across rows, make sure you think about what happens at the beginning and the end.
+:::
+
+### Why loop: sequential comparisons
+
+Another case where loops are necessary: comparing across elements one at a time
+
+Lets say we are measuring **speeds** and we want to determine the number of times speeds are above a threshold
+
+There are many ways to do this - but for will always work
+
+```{r}
+# what is our speed limit 
+speedthresh = 120
+
+# create some sample speeds
+speeds = runif(min=0, max=150, n=300)
+
+nthresh = 0 #create a column for the values from loop to go 
+for ( i  in 1:length(speeds)) {   #using length(data) allows you to make sure all rows are counted
+   if(speeds[i] > speedthresh)
+     nthresh = nthresh + 1
+}
+
+nthresh
+```
+
+### Add some complexity
+
+Let's imagine that we have data on running speeds of a creature we are trying to develop a conservation plan for.
+
+We think that \* when the creature is running at 35 km/hr and above they are hunting. \* when they are moving below 5 km/hr they are socializing \* when they are moving as speeds between this they are traveling
+
+We want to estimate how often they are in each of these categories based.
+
+Build a for loop to do this.
+
+As before, generate some test data using functions in R that allow you to generate data by sampling from distributions with known parameters
+
+```{r}
+speedy = runif(min= 0, max = 50, n = 300)
+
+hunting = 35
+social = 5
+#initialize the column/place to store the data
+num_hunting = 0
+num_social = 0
+
+for (i in 1:length(speedy)) {
+  num_hunting = num_hunting + ifelse(speedy[i] >= hunting, 1, 0) #condition, value if true, value if false
+    num_social = num_social + ifelse(speedy[i] <  social, 1, 0)
+}
+
+# other speeds are traveling, is remainder
+num_traveling = length(speedy) - num_hunting - num_social
+
+# as a percent of recorded speeds
+num_hunting/length(speedy)*100
+num_social/length(speedy)*100
+num_traveling/length(speedy)*100
+```
+
+## Assignment 3
+
+For generated data, shoot for a mean around 20
